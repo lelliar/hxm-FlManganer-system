@@ -1,0 +1,84 @@
+// 封装工具类
+* {
+  box-sizing: border-box;
+  outline: none;
+  margin: 0;
+  padding: 0;
+}
+// 水平垂直居中
+.vertical {
+  position: relative;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+// 垂直居中
+.textCenter {
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+html {
+  font-size: 14px;
+}
+$--color-primary: #cc302d;
+$--font-path: '~element-ui/lib/theme-chalk/fonts';
+@import '~element-ui/packages/theme-chalk/src/index';
+$colors: (
+  'base': #cc302d,
+  'grey': #666666,
+  'bgBase': #ffeceb,
+  'grey1': #cccccc,
+  'white': #ffffff
+);
+@each $colorKey, $color in $colors {
+  .text-#{$colorKey} {
+    color: $color;
+  }
+  .bg-#{$colorKey} {
+    background-color: $color;
+  }
+}
+.tc {
+  text-align: center;
+}
+.d-flex {
+  display: flex;
+}
+.flex-1 {
+  flex: 1;
+}
+// mt-1
+$spacing-types: (
+  m: margin,
+  p: padding
+);
+$spacing-directions: (
+  t: top,
+  r: right,
+  l: left,
+  b: button
+);
+$spacing-size: (
+  0: 0,
+  15: 15,
+  30: 30
+);
+@each $typeKey, $type in $spacing-types {
+  @each $dirKey, $dir in $spacing-directions {
+    @each $sizeKey, $size in $spacing-size {
+      .#{$typeKey}#{$dirKey}-#{$sizeKey} {
+        #{$type}-#{$dir}: $size + px;
+      }
+    }
+  }
+}
+// w-1
+$width: (
+  0: 0
+);
+@each $key, $value in $width {
+  .w-#{$key} {
+    width: $value;
+  }
+}
