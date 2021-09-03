@@ -1,11 +1,13 @@
 import progressOption from '../../progress.config'
-export default [
+export const asyncRoutes = [
   {
     path: 'plant',
     name: 'plant',
     component: () => import(/* webpackChunkName: "home" */ '@/views/pages/plantArea.vue'),
     meta: {
-      progressOption
+      progressOption,
+      title: '厂区管理',
+      roles: ['PRIVILEGE_PLANT_AREA']
     }
   },
   {
@@ -13,7 +15,9 @@ export default [
     name: 'machine',
     component: () => import(/* webpackChunkName: "home" */ '@/views/pages/machine.vue'),
     meta: {
-      progressOption
+      progressOption,
+      title: '自助机管理',
+      roles: ['PRIVILEGE_OPERATION_FLOOR']
     }
   },
   {
@@ -21,7 +25,9 @@ export default [
     name: 'material',
     component: () => import(/* webpackChunkName: "home" */ '@/views/pages/material.vue'),
     meta: {
-      progressOption
+      progressOption,
+      title: '物料管理',
+      roles: ['PRIVILEGE_WAREHOUSE']
     }
   },
   {
@@ -29,7 +35,9 @@ export default [
     name: 'warehouse',
     component: () => import(/* webpackChunkName: "home" */ '@/views/components/warehouseSlot.vue'),
     meta: {
-      progressOption
+      progressOption,
+      title: '仓库管理',
+      roles: ['PRIVILEGE_WAREHOUSE']
     }
   },
   {
@@ -37,7 +45,9 @@ export default [
     name: 'plc',
     component: () => import(/* webpackChunkName: "home" */ '@/views/pages/plc.vue'),
     meta: {
-      progressOption
+      progressOption,
+      title: 'plc管理',
+      roles: ['PRIVILEGE_PLC']
     }
   },
   {
@@ -45,7 +55,9 @@ export default [
     name: 'materialPlan',
     component: () => import(/* webpackChunkName: "home" */ '@/views/pages/materialPlan.vue'),
     meta: {
-      progressOption
+      progressOption,
+      title: '发料计划设置',
+      roles: ['PRIVILEGE_PLAN']
     }
   },
   {
@@ -53,7 +65,9 @@ export default [
     name: 'operator',
     component: () => import(/* webpackChunkName: "home" */ '@/views/pages/operator.vue'),
     meta: {
-      progressOption
+      progressOption,
+      title: '自助机操作人员管理',
+      roles: ['PRIVILEGE_OPERATOR']
     }
   },
   {
@@ -61,7 +75,9 @@ export default [
     name: 'systemPerson',
     component: () => import(/* webpackChunkName: "home" */ '@/views/pages/systemPerson.vue'),
     meta: {
-      progressOption
+      progressOption,
+      title: '系统人员管理',
+      roles: ['PRIVILEGE_SYSTEM_USER']
     }
   }
 ]

@@ -152,7 +152,7 @@ export default {
     },
     // 获取所有自助机
     getMachine() {
-      getDataByPage('/operatingFloor/page', { pageNum: 1, pageSize: 999 }).then((res) => {
+      getDataByPage('/operatingFloor/findBind').then((res) => {
         this.operatingFloorList = res.data.data.records
       })
     },

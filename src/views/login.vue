@@ -41,6 +41,7 @@
 
 <script>
 import { login } from '@/service/request'
+import { buildRoute } from '@sev/premission'
 import { storage } from '@/service/storage'
 export default {
   data() {
@@ -68,6 +69,10 @@ export default {
                 type: 'success',
                 message: '登录成功'
               })
+              const { asyncRoutes, allRoutes } = buildRoute(res.data.data.privileges)
+              this.$store.commit('setRoutes', allRoutes)
+              this.$store.commit('setUserInfo', res.data.data.user)
+              this.$router.addRoutes(asyncRoutes)
               this.$router.push('/home')
             })
             .catch((e) => {
