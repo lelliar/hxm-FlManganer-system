@@ -6,7 +6,11 @@
       @getPageData="getPageData"
       @changeTable="changeTable"
       :planRules="planRules"
+      :pageSize="pageSize"
+      :pageBool="pageBool"
+      :pageTotal="pageTotal"
       ref="allTable"
+      @changepageBool="changepageBool"
       @deleteRow="deleteRow"
       :allTitleName="allTitleName"
     ></AllTable>
@@ -15,7 +19,7 @@
 
 <script>
 import AllTable from '@com/allTable'
-import { deleteData } from '@sev/commonRequest'
+import { deleteData, getDataByPage } from '@sev/commonRequest'
 import { changeMonday } from '@/hooks/changeWeek'
 export default {
   name: 'MaterialPlan',
@@ -26,26 +30,30 @@ export default {
     return {
       dialogFormVisible: false,
       allTitleName: '计划列表',
+      pageSize: 10,
+      pageTotal: 10,
+      // 是否是第一次选择
+      pageBool: true,
       table: [
         {
           name: '厂区',
           prop: 'planPlantAreaName',
-          width: '100'
+          width: '200'
         },
         {
           name: '计划名称',
           prop: 'planName',
-          width: '150'
+          width: '100'
         },
         {
           name: '计划类型',
-          prop: 'planType',
+          prop: 'allPlanDateMsg',
           width: '100'
         },
         {
           name: '计划时间',
-          prop: 'planCreateTime',
-          width: '150'
+          prop: 'allPlanDate',
+          width: '250'
         },
         {
           name: '所发物料',
@@ -69,11 +77,11 @@ export default {
         },
         {
           name: '已发重量',
-          prop: 'planTotalWeight',
+          prop: 'planIssuedNumber',
           width: '100'
         },
         {
-          name: '未发次数',
+          name: '剩余次数',
           prop: 'residueDegree',
           width: '100'
         },
@@ -99,86 +107,41 @@ export default {
         planTotalWeight: [{ required: 'true', message: '请输入发料总量', trigger: 'blur' }],
         planNumber: [{ required: 'true', message: '请输入发料次数', trigger: 'blur' }]
       },
-      tableData: [
-        {
-          planId: 123,
-          planMonth: '2021-03',
-          planWeekNumber: '2021-09-20',
-          planDate: '2021-8-31',
-          planName: '123',
-          planPlantId: [['zujian', 'form']],
-          planPlantAreaId: 13,
-          planPlantAreaName: 'asd',
-          planWorkShopId: 123,
-          planWorkShopName: '12ds',
-          planTeamGroupId: 213,
-          planTeamGroupName: '213',
-          planMaterialId: 1,
-          planMaterialName: '213',
-          planTotalWeight: '213',
-          planNumber: '213',
-          planIssuedNumber: '213',
-          planCreateTime: '2021-08-30',
-          planUpdateTime: '2021-08-30',
-          planType: 1,
-          planStatus: 1,
-          residueDegree: 123
-        },
-        {
-          planId: 123,
-          planMonth: '2021-03',
-          planWeekNumber: '2021-09-20',
-          planDate: '2021-8-31',
-          planName: '123',
-          planPlantAreaId: 13,
-          planPlantAreaName: 'asd',
-          planWorkShopId: 123,
-          planWorkShopName: '12ds',
-          planTeamGroupId: 213,
-          planTeamGroupName: '213',
-          planMaterialId: 1,
-          planMaterialName: '213',
-          planTotalWeight: 0,
-          planNumber: '213',
-          planIssuedNumber: '213',
-          planCreateTime: '2021-08-30',
-          planUpdateTime: '2021-08-30',
-          planType: 0,
-          planStatus: 0,
-          residueDegree: 123
-        },
-        {
-          planId: 123,
-          planMonth: '2021-04',
-          planWeekNumber: '2021-09-10',
-          planDate: '2021-8-31',
-          planName: '123',
-          planPlantAreaId: 13,
-          planPlantAreaName: 'asd',
-          planWorkShopId: 123,
-          planWorkShopName: '12ds',
-          planTeamGroupId: 213,
-          planTeamGroupName: '213',
-          planMaterialId: 1,
-          planMaterialName: '213',
-          planTotalWeight: 10,
-          planNumber: '213',
-          planIssuedNumber: '213',
-          planCreateTime: '2021-08-30',
-          planUpdateTime: '2021-08-30',
-          planType: 2,
-          planStatus: 0,
-          residueDegree: 123
-        }
-      ]
+      tableData: []
     }
   },
   methods: {
+    changepageBool(val) {
+      this.pageBool = val
+    },
     // 修改tableData
     changeTable(val) {
-      this.tableData = val
+      val.records.map((item) => {
+        if (item.planType == 0) {
+          item.allPlanDateMsg = '月计划'
+          item.allPlanDate = item.planMonth
+        }
+        if (item.planType == 1) {
+          item.allPlanDateMsg = '周计划'
+          item.allPlanDate = item.planWeekNumber
+        }
+        if (item.planType == 2) {
+          item.allPlanDateMsg = '日计划'
+          item.allPlanDate = item.planDate
+        }
+        // if()
+        item.planStatusMsg = item.planStatus ? '启用' : '停用'
+        item.matrialStatusMsg = item.planTotalWeight == 0 ? '已发' : '未发'
+        item.residueDegree = Math.floor(item.planNumber - item.planIssuedNumber)
+
+        changeMonday(item.planWeekNumber)
+        return item
+      })
+      this.pageBool = true
+      this.tableData = val.records
+      this.pageTotal = val.total
     },
-    deleteRow(row) {
+    deleteRow(row, pageData) {
       this.$confirm(`此操作将永久删除${row.planPlantAreaName}下的计划, 是否继续?`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -188,8 +151,9 @@ export default {
           deleteData(`/plan/remove/${row.planId}`).then((res) => {
             this.$message({
               type: 'success',
-              message: 'res.data.message'
+              message: '删除成功'
             })
+            this.getPageData(this.pageSize, pageData)
           })
         })
         .catch(() => {
@@ -201,27 +165,34 @@ export default {
     },
     // 分页请求
     getPageData(pageNum, pageSize) {
-      //   getDataByPage('/plan/page', { pageNum: pageNum, pageSize: pageSize }).then((res) => {
-      //     this.nowPageData = pageNum
-      //     this.pageSize = pageSize
-      //     res.data.data.records.map((item) => {
-      //       item.planStatusMsg = item.planStatus ? '启用' : '停用'
-      //       item.matrialStatusMsg = item.planTotalWeight == 0 ? '未发' : '已发'
-      //       changeMonday(item.planWeekNumber)
-      //       return item
-      //     })
-      //     this.tableData = res.data.data.records
-      //     this.pageTotal = res.data.data.total
-      //     if (res.data.data.records && res.data.data.records.length == 0 && this.nowPageData > 1) {
-      //       this.nowPageData--
-      //       this.getPageData()
-      //     }
-      //   })
-      this.tableData.map((item) => {
-        item.planStatusMsg = item.planStatus ? '启用' : '停用'
-        item.matrialStatusMsg = item.planTotalWeight == 0 ? '未发' : '已发'
-        changeMonday(item.planWeekNumber)
-        return item
+      getDataByPage('/plan/page', { pageNum: pageSize, pageSize: this.pageSize }).then((res) => {
+        res.data.data.records.map((item) => {
+          if (item.planType == 0) {
+            item.allPlanDateMsg = '月计划'
+            item.allPlanDate = item.planMonth
+          }
+          if (item.planType == 1) {
+            item.allPlanDateMsg = '周计划'
+            item.allPlanDate = item.planWeekNumber
+          }
+          if (item.planType == 2) {
+            item.allPlanDateMsg = '日计划'
+            item.allPlanDate = item.planDate
+          }
+          // if()
+          item.planStatusMsg = item.planStatus ? '启用' : '停用'
+          item.matrialStatusMsg = item.planTotalWeight == 0 ? '已发' : '未发'
+          item.residueDegree = Math.floor(item.planNumber - item.planIssuedNumber)
+          changeMonday(item.planWeekNumber)
+          return item
+        })
+        this.tableData = res.data.data.records
+        this.pageTotal = res.data.data.total
+        this.pageBool = true
+        if (res.data.data.records.length == 0 && pageSize != 1) {
+          this.nowPageData--
+          this.getPageData(this.pageSize, this.nowPageData)
+        }
       })
     }
   }

@@ -48,7 +48,8 @@ export default {
     return {
       loginUser: {
         userLoginName: '',
-        userPassword: ''
+        userPassword: '',
+        userType: 0
         // userOperatorIdCard: '123456789123456789'
       },
       rules: {
@@ -60,27 +61,24 @@ export default {
   },
   methods: {
     submitForm(formName) {
+      const _this = this
       this.$refs[formName].validate((valid) => {
         if (valid) {
-          login(this.loginUser)
-            .then((res) => {
-              storage.set('token', res.data.data.token)
-              this.$message({
-                type: 'success',
-                message: '登录成功'
-              })
-              const { asyncRoutes, allRoutes } = buildRoute(res.data.data.privileges)
-              this.$store.commit('setRoutes', allRoutes)
-              this.$store.commit('setUserInfo', res.data.data.user)
-              this.$router.addRoutes(asyncRoutes)
-              this.$router.push('/home')
+          login(this.loginUser).then((res) => {
+            storage.set('token', res.data.data.token)
+            this.$message({
+              type: 'success',
+              message: '登录成功'
             })
-            .catch((e) => {
-              this.$message({
-                type: 'error',
-                message: '请输入正确的账号密码'
-              })
-            })
+            localStorage.setItem('privilegs', JSON.stringify(res.data.data.privileges))
+            localStorage.setItem('user', JSON.stringify(res.data.data.user))
+            const { asyncRoutes, allRoutes } = buildRoute(res.data.data.privileges)
+            _this.$store.commit('setRoutes', allRoutes)
+            _this.$store.commit('setUserInfo', res.data.data.user)
+            _this.$store.commit('setAsyncRoute', asyncRoutes)
+            _this.$store.commit('updateAsyncRoute')
+            _this.$router.push('/home')
+          })
         } else {
           this.$message({
             type: 'error',

@@ -21,7 +21,7 @@ module.exports = {
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'generator-star-spacing': 'off',
-    'switch-case':0,
+    'switch-case': 0,
     'no-var': 0,
     'padded-blocks': 'off',
     'space-before-function-paren': 0,

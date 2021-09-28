@@ -151,8 +151,8 @@ export default {
       })
     },
     // 获取所有自助机
-    getMachine() {
-      getDataByPage('/operatingFloor/findBind').then((res) => {
+    getMachine(id) {
+      getDataByPage('/operatingFloor/page', { pageNum: 1, pageSize: 999 }).then((res) => {
         this.operatingFloorList = res.data.data.records
       })
     },
@@ -170,6 +170,7 @@ export default {
       for (const key in this.form) {
         this.form[key] = ''
       }
+      this.getMachine(-1)
       this.titleName = '新增'
       this.dialogFormVisible = true
     },
@@ -266,6 +267,7 @@ export default {
     // 点击修改
     changeRow(row) {
       this.dialogFormVisible = true
+      this.getMachine(row.warehouseId)
       this.form = JSON.parse(JSON.stringify(row))
     },
     // 获取数据

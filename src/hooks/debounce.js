@@ -1,5 +1,5 @@
 let timeout
-export function debounce(func, wait = 3000, immediate = true) {
+export function debounce(func, wait = 500, immediate = true) {
   // 清除定时器
   if (timeout) {
     clearTimeout(timeout)

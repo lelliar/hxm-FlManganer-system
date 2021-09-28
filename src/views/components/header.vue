@@ -37,6 +37,9 @@ export default {
       nickName: '白'
     }
   },
+  created() {
+    this.nickName = this.$store.state.userInfo.name
+  },
   methods: {
     handleCommand(command) {
       if (command == 'b') {

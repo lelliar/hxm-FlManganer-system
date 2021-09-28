@@ -9,7 +9,7 @@
               <el-cascader
                 v-model="manyOptions"
                 :options="options"
-                :props="{ expandTrigger: 'hover' }"
+                :props="{ checkStrictly: true }"
                 clearable
                 @change="handleChange"
               ></el-cascader>
@@ -39,13 +39,21 @@
                 <i slot="suffix" class="el-input__icon el-icon-search"></i>
               </el-input>
             </div>
+            <el-button
+              type="primary"
+              style="margin-right: 20px"
+              @click="exportModel"
+              v-if="allTitleName == '自助机操作人员管理'"
+              >EXCLE模板导出</el-button
+            >
             <el-upload
               v-if="allTitleName == '自助机操作人员管理'"
               class="upload-demo"
-              name="ExcelData"
+              name="excelData"
               ref="upload"
+              :headers="upLoadHeaders"
               :show-file-list="false"
-              action="/user/operator/import"
+              action="http://192.168.0.99:8080/user/operator/import"
               accept=".xls,.xlsx"
               multiple
               :on-error="errorUpload"
@@ -58,7 +66,13 @@
         </div>
       </template>
     </Title>
-    <el-table :data="tableData" style="width: 100%">
+    <el-table
+      :data="tableData"
+      max-height="600"
+      style="width: 100%"
+      :row-style="{ height: '30px' }"
+      :cell-style="{ padding: '0' }"
+    >
       <el-table-column
         :prop="item.prop"
         :label="item.name"
@@ -106,7 +120,12 @@
               >
             </template>
           </el-table-column>
-          <el-table-column fixed="right" label="操作" width="300" v-if="allTitleName != 'plc管理'">
+          <el-table-column
+            fixed="right"
+            label="操作"
+            width="300"
+            v-if="allTitleName != 'plc管理' && allTitleName != '计划列表'"
+          >
             <template slot-scope="scope" style="display: flex">
               <el-button @click.native.prevent="startRow(scope.row)" type="text">启用</el-button>
               <el-button @click.native.prevent="stopRow(scope.row)" type="text">停用</el-button>
@@ -129,6 +148,7 @@
         <el-pagination
           layout="prev, pager, next"
           :total="pageTotal"
+          :current-page="nowPageData"
           :page-size="pageSzie"
           @current-change="pageChange"
           class="pageCurrent"
@@ -147,7 +167,12 @@
             ref="form"
             v-if="!isRecord && allTitleName == '计划列表'"
           >
-            <el-form-item label="计划类型" :label-width="formLabelWidth" prop="planType">
+            <el-form-item
+              label="计划类型"
+              :label-width="formLabelWidth"
+              v-if="titleName != '修改'"
+              prop="planType"
+            >
               <el-select v-model="form.planType" placeholder="请选择">
                 <el-option
                   v-for="item in oneOptions"
@@ -161,13 +186,14 @@
             <el-form-item
               label="选择月份："
               :label-width="formLabelWidth"
-              v-if="form.planType == 0"
+              v-if="form.planType == 0 && titleName != '修改'"
               prop="planMonth"
             >
               <el-date-picker
                 v-model="form.planMonth"
                 type="month"
                 placeholder="选择月份"
+                @change="handleMonthChange"
                 format="yyyy 年 MM 月"
                 :clearable="false"
                 value-format="yyyy-MM"
@@ -177,23 +203,19 @@
             <el-form-item
               label="选择周数："
               :label-width="formLabelWidth"
-              v-else-if="form.planType == 1"
+              v-else-if="form.planType == 1 && titleName != '修改'"
               prop="planWeekNumber"
             >
-              <el-date-picker
-                v-model="form.planWeekNumber"
-                type="week"
-                placeholder="选择周数"
-                format="yyyy 年 WW 周"
-                :clearable="false"
-                @change="changeTime"
-              >
-              </el-date-picker>
+              <el-select v-model="form.planWeekNumber" placeholder="请选择">
+                <el-option v-for="item in weeks" :key="item" :label="item" :value="item">
+                  <span style="float: right; color: #8492a6; font-size: 13px">{{ item }}</span>
+                </el-option>
+              </el-select>
             </el-form-item>
             <el-form-item
               label="选择日期："
               :label-width="formLabelWidth"
-              v-else-if="form.planType == 2"
+              v-else-if="form.planType == 2 && titleName != '修改'"
               prop="planDate"
             >
               <el-date-picker
@@ -206,18 +228,12 @@
               >
               </el-date-picker>
             </el-form-item>
-            <el-form-item label="计划名称:" :label-width="formLabelWidth" prop="planName">
-              <el-input v-model="form.planName"></el-input>
-            </el-form-item>
-            <el-form-item label="计划厂区" :label-width="formLabelWidth" prop="planPlantId">
-              <el-cascader
-                v-model="form.planPlantId"
-                :options="options"
-                :props="{ multiple: true, checkStrictly: true }"
-                @change="handleDioChange"
-              ></el-cascader>
-            </el-form-item>
-            <el-form-item label="所发物料:" :label-width="formLabelWidth" prop="planMaterialId">
+            <el-form-item
+              label="所发物料:"
+              :label-width="formLabelWidth"
+              prop="planMaterialId"
+              v-if="titleName != '修改'"
+            >
               <el-select v-model="form.planMaterialId" placeholder="请选择">
                 <el-option
                   v-for="item in materialSend"
@@ -228,11 +244,36 @@
                 </el-option>
               </el-select>
             </el-form-item>
+            <el-form-item label="计划名称:" :label-width="formLabelWidth" prop="planName">
+              <el-input v-model="form.planName"></el-input>
+            </el-form-item>
+            <el-form-item
+              label="计划厂区"
+              :label-width="formLabelWidth"
+              prop="planPlantId"
+              v-if="titleName != '修改'"
+            >
+              <el-cascader
+                v-model="form.planPlantId"
+                :options="options"
+                ref="cascader"
+                :props="{ multiple: true, checkStrictly: true }"
+                @focus="handleDioChange"
+                @change="handleDio"
+              ></el-cascader>
+            </el-form-item>
+
             <el-form-item label="发料总量" :label-width="formLabelWidth" prop="planTotalWeight">
-              <el-input v-model="form.planTotalWeight"></el-input>
+              <el-input
+                oninput="value=value.replace(/[^\d]/g,'')"
+                v-model="form.planTotalWeight"
+              ></el-input>
             </el-form-item>
             <el-form-item label="发料次数" :label-width="formLabelWidth" prop="planNumber">
-              <el-input v-model="form.planNumber"></el-input>
+              <el-input
+                v-model="form.planNumber"
+                oninput="value=value.replace(/[^\d]/g,'')"
+              ></el-input>
             </el-form-item>
           </el-form>
           <!-- 系统人员管理 -->
@@ -242,23 +283,25 @@
             ref="form"
             v-else-if="allTitleName == '系统人员管理'"
           >
-            <el-form-item label="姓名" :label-width="formLabelWidth">
+            <el-form-item label="姓名" :label-width="formLabelWidth" prop="userName">
               <el-input v-model="form.userName"></el-input>
             </el-form-item>
-            <el-form-item label="登录账号" :label-width="formLabelWidth">
+            <el-form-item label="登录账号" :label-width="formLabelWidth" prop="userLoginName">
               <el-input v-model="form.userLoginName"></el-input>
             </el-form-item>
-            <el-form-item label="默认密码" :label-width="formLabelWidth"> 111111 </el-form-item>
-            <el-form-item label="联系方式" :label-width="formLabelWidth">
-              <el-input v-model="form.userContact"></el-input>
+            <el-form-item label="默认密码" :label-width="formLabelWidth"> 000000 </el-form-item>
+            <el-form-item label="联系方式" :label-width="formLabelWidth" prop="userContact">
+              <el-input
+                v-model="form.userContact"
+                oninput="value=value.replace(/[^\d]/g,'')"
+              ></el-input>
             </el-form-item>
             <el-form-item label="人员权限" :label-width="formLabelWidth">
               <el-tree
                 :data="powerTree"
                 show-checkbox
-                default-expand-all
-                node-key="id"
-                v-model="form.privileges"
+                :default-checked-keys="powerSelectTree"
+                node-key="value"
                 @check="getPowerTree"
                 ref="tree"
                 highlight-current
@@ -275,17 +318,20 @@
             ref="form"
             v-else-if="allTitleName == '自助机操作人员管理'"
           >
-            <el-form-item label="姓名" :label-width="formLabelWidth">
+            <el-form-item label="姓名" :label-width="formLabelWidth" prop="userName">
               <el-input v-model="form.userName"></el-input>
             </el-form-item>
-            <el-form-item label="联系方式" :label-width="formLabelWidth">
-              <el-input v-model="form.userContact"></el-input>
+            <el-form-item label="联系方式" :label-width="formLabelWidth" prop="userContact">
+              <el-input
+                v-model="form.userContact"
+                oninput="value=value.replace(/[^\d]/g,'')"
+              ></el-input>
             </el-form-item>
-            <el-form-item label="身份证号" :label-width="formLabelWidth">
-              <el-input v-model="form.userOperatorIdCard"></el-input>
+            <el-form-item label="身份证号" :label-width="formLabelWidth" prop="userLoginName">
+              <el-input v-model="form.userLoginName"></el-input>
             </el-form-item>
             <el-form-item label="可发料厂区" :label-width="formLabelWidth">
-              <el-select v-model="form.userOperatorPlantAreaId" multiple placeholder="请选择">
+              <el-select v-model="form.plantId" multiple placeholder="请选择">
                 <el-option
                   v-for="item in materialSend"
                   :key="item.paId"
@@ -332,9 +378,19 @@
 <script>
 import Title from '@com/title.vue'
 import { debounce } from '@/hooks/debounce'
-import { enable, commonEnable } from '@/hooks/enable'
-import { getByIdData, getData, getDataByPage, changeData, addData } from '@/service/commonRequest'
+import axios from 'axios'
+import {
+  getByIdData,
+  getData,
+  getDataByPage,
+  changeData,
+  addData,
+  deleteData
+} from '@/service/commonRequest'
+import { handleCofirm } from '@/hooks/messageBox'
+import { Message } from 'element-ui'
 import { getMonday } from '@/hooks/changeWeek'
+import { storage } from '@sev/storage'
 import dayjs from 'dayjs'
 const weekOfYear = require('dayjs/plugin/weekOfYear')
 dayjs.extend(weekOfYear)
@@ -344,39 +400,23 @@ export default {
   components: {
     Title
   },
-  props: ['tableData', 'table', 'allTitleName', 'planRules'],
+  props: ['tableData', 'table', 'allTitleName', 'planRules', 'pageTotal', 'pageSzie', 'pageBool'],
   data() {
     return {
+      // 当前周
+      nowWeek: '',
       form: {
         planType: 0,
         planMonth: 0,
+        planTotalWeight: 0,
         planPlantAreaId: '',
         planWorkShopId: '',
         planTeamGroupId: ''
       },
       // 权限管理树
-      powerTree: [
-        {
-          id: 1,
-          label: '页面'
-        },
-        {
-          id: 2,
-          label: '页面2'
-        },
-        {
-          id: 3,
-          label: '页面3'
-        },
-        {
-          id: 4,
-          label: '页面3'
-        },
-        {
-          id: 5,
-          label: '页面3'
-        }
-      ],
+      powerTree: [],
+      // 权限管理选择
+      powerSelectTree: [],
       // 所发物料/所有可发料的厂区
       materialSend: [
         {
@@ -418,12 +458,12 @@ export default {
           label: '日计划'
         },
         {
-          value: 0,
-          label: '月计划'
-        },
-        {
           value: 1,
           label: '周计划'
+        },
+        {
+          value: 0,
+          label: '月计划'
         }
       ],
       // 发料记录
@@ -470,8 +510,12 @@ export default {
         children: 'children',
         label: 'label'
       },
-      pageSzie: 10, // 每页显示多少条,
-      pageTotal: 10, // 总条数
+      // 周的集合
+      weeks: [],
+
+      upLoadHeaders: {
+        token: storage.get('token').data
+      },
       nowPageData: 1, // 当前第几页
       titleName: '修改',
       formLabelWidth: '120px',
@@ -481,14 +525,31 @@ export default {
   created() {
     this.$emit('getPageData', this.pageSzie, this.nowPageData)
     this.searchAllPlantAres()
+    if (this.allTitleName == '系统人员管理') {
+      this.searchPrive()
+    }
+    if (this.allTitleName == '计划列表') {
+      this.handleDioCreate()
+      deleteData('/week/get').then((res) => {
+        this.weeks = res.data.data
+      })
+    }
   },
   methods: {
     // 文件上传成功时
-    successUpload() {
-      this.$message({
-        type: 'success',
-        message: '上传成功'
-      })
+    successUpload(e) {
+      if (e.code == 999) {
+        this.$message({
+          type: 'error',
+          message: e.msg
+        })
+      } else {
+        this.$message({
+          type: 'success',
+          message: '上传成功'
+        })
+        this.$emit('getPageData', this.pageSzie, this.nowPageData)
+      }
     },
     // 文件上传失败
     errorUpload() {
@@ -497,28 +558,93 @@ export default {
         message: '文件上传失败'
       })
     },
+
     // 关闭form
     closeDialog() {
       if (this.allTitleName == '计划列表') {
         this.$refs['form'].resetFields()
+        this.handleDioCreate()
+      }
+      if (this.allTitleName == '系统人员管理') {
+        this.$nextTick(() => {
+          this.$refs.tree.setCheckedKeys([])
+        })
       }
     },
-    // 修改页多选
-    handleDioChange(e) {
-      console.log(e)
+    handleDio(e) {
       this.form.planPlantId = e
-
-      console.log(this.form)
+    },
+    // 多选过滤;
+    handleDioChangeFilter(data) {
+      this.options = JSON.parse(
+        JSON.stringify(data)
+          .replace(/paIsPlan/g, 'disabled')
+          .replace(/wsIsPlan/g, 'disabled')
+          .replace(/teamIsPlan/g, 'disabled')
+          .replace(/paId/g, 'value')
+          .replace(/paName/g, 'label')
+          .replace(/workShops/g, 'children')
+          .replace(/wsId/g, 'value')
+          .replace(/wsName/g, 'label')
+          .replace(/teams/g, 'children')
+          .replace(/teamId/g, 'value')
+          .replace(/teamName/g, 'label')
+      )
+    },
+    // 进入页面时的多选
+    handleDioCreate() {
+      getByIdData('/plantArea/all').then((res) => {
+        this.handleDioChangeFilter(res.data.data)
+      })
+    },
+    // 修改页多选
+    handleDioChange() {
+      this.options = []
+      if (
+        this.form.planMaterialId &&
+        (this.form.planWeekNumber || this.form.planDate || this.form.planMonth)
+      ) {
+        if (this.form.planType == 0) {
+          getData('/plan/getPlantAreaIsPlan', {
+            planType: 0,
+            planMaterialId: this.form.planMaterialId,
+            planMonth: this.form.planMonth
+          }).then((res) => {
+            this.handleDioChangeFilter(res.data.data)
+          })
+        }
+        if (this.form.planType == 1) {
+          getData('/plan/getPlantAreaIsPlan', {
+            planType: 1,
+            planWeekNumber: this.form.planWeekNumber,
+            planMaterialId: this.form.planMaterialId
+          }).then((res) => {
+            this.handleDioChangeFilter(res.data.data)
+          })
+        }
+        if (this.form.planType == 2) {
+          getData('/plan/getPlantAreaIsPlan', {
+            planType: 2,
+            planDate: this.form.planDate,
+            planMaterialId: this.form.planMaterialId
+          }).then((res) => {
+            this.handleDioChangeFilter(res.data.data)
+          })
+        }
+      } else {
+        this.$message({
+          type: 'error',
+          message: '请先选择所发物料/计划类型'
+        })
+      }
     },
     // 获取到树的值
     getPowerTree(Node, Event) {
-      this.form.privileges = Event.checkedKeys.map((item) => {
-        return { privilegeId: item }
+      this.form.privileges = Event.checkedNodes.map((item) => {
+        return { privilegeId: item.value }
       })
     },
-    handleSelectClick(data) {
-      console.log(data)
-    },
+    handleSelectClick(data) {},
     // 改变周数
     changeTime(date) {
       let time = getMonday(date)
@@ -528,66 +654,118 @@ export default {
     // 查询厂区车间班组
 
     searchAllPlantAres() {
-      if (this.allTitleName == '计划列表') {
-        getByIdData('/plantArea/all').then((res) => {
-          this.options = JSON.parse(
-            JSON.stringify(res.data.data.records)
-              .replace(/paId/g, 'value')
-              .replace(/paName/g, 'label')
-              .replace(/workShops/g, 'children')
-              .replace(/wsId/g, 'value')
-              .replace(/wsName/g, 'label')
-              .replace(/teams/g, 'children')
-              .replace(/tgId/g, 'value')
-              .replace(/tgName/g, 'label')
-          )
-        })
-      } else {
-        getData('/plantArea/page', {
-          pageNum: 999,
-          pageSize: 1
-        }).then((res) => {
-          this.materialSend = res.data.data.records
-        })
-      }
+      getData('/plantArea/page', {
+        pageNum: 1,
+        pageSize: 999
+      }).then((res) => {
+        this.materialSend = res.data.data.records
+      })
     },
     // 查询所有物料
     searchMaterial() {
-      getData('/material/page', { pageNum: 999, pageSize: 1 }).then((res) => {
+      getData('/material/page', { pageNum: 1, pageSize: 999 }).then((res) => {
         this.materialSend = res.data.data.records
       })
     },
     // 启用
     startRow(row) {
-      if (this.allTitleName == '计划列表') enable(row, '启用')
-      else {
-        commonEnable(row.userStatus, true, '启用', '/user/startAndStop', {
-          userId: row.userId,
-          userStatus: row.userStatus,
-          userType: row.userType
-        })
+      if (this.allTitleName == '计划列表') {
+        if (row.planStatusMsg == '启用') {
+          Message({
+            type: 'warning',
+            message: `当前计划已经启用了嗷!`
+          })
+        } else {
+          handleCofirm(`你确认要启用${row.planWorkShopName}计划吗`).then((res) => {
+            getData('/plan/startAndStop', { planId: row.planId, planStatus: 1 }).then((res) => {
+              Message({
+                type: 'success',
+                message: `启用成功`
+              })
+              this.$emit('getPageData', this.pageSzie, this.nowPageData)
+            })
+          })
+        }
+      } else {
+        if (row.userStatus == true) {
+          Message({
+            type: 'warning',
+            message: `当前人员已经启用了嗷！`
+          })
+        } else {
+          handleCofirm(`你确认要启用当前人员吗`).then((res) => {
+            getData('/user/startAndStop', {
+              userId: row.userId,
+              userStatus: !row.userStatus
+            }).then((res) => {
+              Message({
+                type: 'success',
+                message: `启用成功`
+              })
+              this.$emit('getPageData', this.pageSzie, this.nowPageData)
+            })
+          })
+        }
       }
-      this.$emit('getPageData', this.nowPageData, this.pageSzie)
+    },
+    // 选择月份后
+    handleMonthChange(e) {
+      this.form.planMonth = e
     },
     // 停用
     stopRow(row) {
-      if (this.allTitleName == '计划列表') enable(row, '停用')
-      else {
-        commonEnable(row.userStatus, false, '停用', '/user/startAndStop', {
-          userId: row.userId,
-          userStatus: row.userStatus,
-          userType: row.userType
-        })
+      if (this.allTitleName == '计划列表') {
+        if (row.planStatusMsg == '停用') {
+          Message({
+            type: 'warning',
+            message: `当前计划已经停用了嗷!`
+          })
+        } else {
+          handleCofirm(`你确认要停用${row.planWorkShopName}计划吗`).then((res) => {
+            getData('/plan/startAndStop', { planId: row.planId, planStatus: 0 }).then((res) => {
+              Message({
+                type: 'success',
+                message: `停用成功`
+              })
+              this.$emit('getPageData', this.pageSzie, this.nowPageData)
+            })
+          })
+        }
+      } else {
+        if (row.userStatus == false) {
+          Message({
+            type: 'warning',
+            message: `当前人员已经停用了嗷！`
+          })
+        } else {
+          handleCofirm(`你确认要停用当前人员吗`).then((res) => {
+            getData('/user/startAndStop', {
+              userId: row.userId,
+              userStatus: !row.userStatus
+            }).then((res) => {
+              Message({
+                type: 'success',
+                message: `停用成功`
+              })
+              this.$emit('getPageData', this.pageSzie, this.nowPageData)
+            })
+          })
+        }
       }
-      this.$emit('getPageData', this.nowPageData, this.pageSzie)
     },
     // 防抖搜索
     searchFun(e) {
+      if (this.pageBool) {
+        this.nowPageData = 1
+      }
       debounce(() => {
         getDataByPage('/plan/page', {
-          planName: e
+          planName: e,
+          pageNum: this.nowPageData,
+          pageSize: 10
         }).then((res) => {
-          this.$emit('changeTable', res.data.data.records)
+          this.$emit('changeTable', res.data.data)
+          this.$emit('changepageBool', false)
         })
       })
     },
@@ -607,9 +785,9 @@ export default {
           getByIdData(`/user/resetPasswords/${row.userId}`).then((res) => {
             this.$message({
               type: 'success',
-              message: res.data.message
+              message: '重置密码成功'
             })
-            this.$emit('getPageData', this.nowPageData, this.pageSzie)
+            this.$emit('getPageData', this.pageSzie, this.nowPageData)
           })
         })
         .catch(() => {
@@ -619,10 +797,35 @@ export default {
           })
         })
     },
+    // 查询所有权限
+    searchPrive() {
+      getData('/privilege/page', { pageNum: 999, pageSize: 1 }).then((res) => {
+        this.powerTree = JSON.parse(
+          JSON.stringify(res.data.data.records)
+            .replace(/privilegeId/g, 'value')
+            .replace(/privilegeCNName/g, 'label')
+        )
+        this.powerTree = this.powerTree.filter((item) => {
+          return item.value != 1 && item.value != 2
+        })
+      })
+    },
     // 改变页面
     pageChange(val) {
       this.nowPageData = val
-      this.$emit('getPageData', this.pageSzie, this.nowPageData)
+      if (this.planType) {
+        this.$emit('changepageBool', false)
+        this.oneOptionSelect(this.planType)
+      } else if (this.manyOptions.length != 0) {
+        this.$emit('changepageBool', false)
+        this.handleChange(this.manyOptions)
+      } else if (this.searchInput) {
+        this.$emit('changepageBool', false)
+        this.searchFun(this.searchInput)
+      } else {
+        this.$emit('changepageBool', false)
+        this.$emit('getPageData', this.pageSzie, this.nowPageData)
+      }
     },
     // 重置表单校验
     closeFrom(formName) {
@@ -634,10 +837,9 @@ export default {
 
     recordRow(row) {
       this.dialogFormVisible = true
-
       if (this.allTitleName == '计划列表') {
         this.isRecord = true
-        getData(`/plan/record`, {
+        getData(`/storeIssueRecord/page`, {
           sirPlanId: row.planId,
           pageNum: this.recordNowPageData,
           pageSize: this.recordPageSize
@@ -654,53 +856,76 @@ export default {
       }
 
       this.dialogFormVisible = true
-      //   for (const key in this.form) {
-      //     this.form[key] = ''
-      //   }
       this.form = {}
-      if (this.allTitleName == '系统人员管理') {
-        this.$nextTick(() => {
-          this.$refs.tree.setCheckedKeys([])
-        })
-      }
-      console.log('111')
+
       this.isRecord = false
       this.titleName = '新增'
     },
+    // 导出EXCEL模板
+    exportModel() {
+      axios({
+        method: 'get',
+        url: '/自助机操作员导入模板.xlsx',
+        responseType: 'blob'
+      }).then((res) => {
+        let blob = new Blob([res.data], { type: 'application/vnd.ms-excel' })
+        let objectUrl = URL.createObjectURL(blob)
+        window.location.href = objectUrl
+      })
+    },
     // 提交
     submit(formName) {
-      var changeUrl
-      var addUrl
-      var id
-      if (this.allTitleName == '计划列表') {
-        changeUrl = '/plan/modify'
-        addUrl = '/plan/add'
-        id = this.form.planId
-        // const a = this.form.planPlantId.map((item) => {
-        //   if (item.length == 1) {
-        //     return { planPlantAreaId: item[0] }
-        //   } else if (item.length == 2) {
-        //     return { planWorkShopId: item[1] }
-        //   } else {
-        //     return { planTeamGroupId: item[2] }
-        //   }
-        // })
-      } else {
-        changeUrl = '/user/operator/modify'
-        addUrl = '/user/add'
-        id = this.form.userId
-        if (this.allTitleName == '自助机操作人员管理') {
-          this.form['userType'] = 1
-          const { userOperatorPlantAreaId } = this.form
-          this.form.userOperatorPlantAreaId = userOperatorPlantAreaId.map((item) => {
-            return { userOperatorPlantAreaId: item }
-          })
-        } else {
-          this.form['uerType'] = 0
-        }
-      }
       this.$refs[formName].validate((valid) => {
         if (valid) {
+          var changeUrl
+          var addUrl
+          var id
+          if (this.allTitleName == '计划列表' && this.titleName != '修改') {
+            addUrl = '/plan/add'
+            this.form.planTotalWeight = Number(this.form.planTotalWeight)
+            this.form.planNumber = Number(this.form.planNumber)
+            this.form.plantAreas = []
+            this.form.workShops = []
+            this.form.teams = []
+            this.form.planPlantId.forEach((item) => {
+              if (item.length == 1) {
+                this.form.plantAreas.push({ paId: item[0] })
+              }
+              if (item.length == 2) {
+                this.form.workShops.push({ wsId: item[1], wsPlantArea: item[0] })
+              }
+              if (item.length == 3) {
+                this.form.teams.push({
+                  teamId: item[2],
+                  teamPlantAreaId: item[0],
+                  teamWorkShopId: item[1]
+                })
+              }
+            })
+          } else if (this.allTitleName == '计划列表' && this.titleName == '修改') {
+            changeUrl = '/plan/modify'
+            id = this.form.planId
+            this.form = {
+              planId: id,
+              planName: this.form.planName,
+              planTotalWeight: Number(this.form.planTotalWeight),
+              planNumber: Number(this.form.planNumber)
+            }
+          } else {
+            changeUrl = '/user/modify'
+            addUrl = '/user/add'
+            id = this.form.userId
+            if (this.allTitleName == '自助机操作人员管理') {
+              this.form['userType'] = 1
+              const { plantId } = this.form
+              delete this.form.plantAreass
+              this.form.plantAreas = plantId.map((item) => {
+                return { paId: item }
+              })
+            } else {
+              this.form['userType'] = 0
+            }
+          }
           //   this.form.materialId
           //     ? this.$emit('submitFormPut', this.form)
           //     : this.$emit('submitAddData', this.form)
@@ -710,74 +935,155 @@ export default {
                 type: 'success',
                 message: '修改成功'
               })
-              this.$emit('getPageData', this.nowPageData, this.pageSzie)
+              this.$emit('getPageData', this.pageSzie, this.nowPageData)
               this.dialogFormVisible = false
             })
           } else {
+            delete this.form.planPlantId
             addData(addUrl, this.form).then((res) => {
               this.$message({
                 type: 'success',
                 message: '添加成功'
               })
-              this.$emit('getPageData', this.nowPageData, this.pageSzie)
+              this.$emit('getPageData', this.pageSzie, this.nowPageData)
               this.dialogFormVisible = false
             })
           }
+        } else {
+          return false
         }
       })
     },
     // 点击修改
     changeRow(row) {
       this.dialogFormVisible = true
+      this.titleName = '修改'
       if (this.allTitleName == '计划列表') {
         this.searchMaterial()
         this.isRecord = false
       }
       this.form = {}
       if (this.allTitleName == '系统人员管理') {
-        this.$nextTick(() => {
-          this.$refs.tree.setCheckedKeys([])
-        })
+        if (row.privileges.length != 0) {
+          this.powerSelectTree = row.privileges.map((item) => {
+            return item.privilegeId
+          })
+        } else {
+          this.powerSelectTree = []
+        }
       }
+      // 将权限规则改为对应数组
+
       this.form = JSON.parse(JSON.stringify(row))
     },
+    // 清空el-tree
+    rest() {
+      this.$nextTick(() => {
+        this.$refs.tree.setCheckedKeys([])
+      })
+    },
     deleteRow(row) {
-      this.$emit('deleteRow', row)
+      const _this = this
+      _this.$emit('deleteRow', row, this.nowPageData)
     },
     copyRow(row) {
       this.isRecord = false
       this.form = {}
+      this.titleName = '新增'
       this.dialogFormVisible = true
       this.form = JSON.parse(JSON.stringify(row))
       delete this.form.planId
     },
     // 普通选择器
     oneOptionSelect(e) {
-      if (this.manyOptions.length == 0) {
-        this.$message({
-          type: 'error',
-          message: '请先选择厂区/车间/班组'
-        })
-      } else {
-        getDataByPage('/plan/page', {
-          planPlantAreaId: this.manyOptions[0],
-          planWorkShopId: this.manyOptions[1],
-          planTeamGroupId: this.manyOptions[2],
-          planType: e
-        }).then((res) => {
-          this.$emit('changeTable', res.data.data.records)
-        })
+      if (this.pageBool) {
+        this.nowPageData = 1
       }
+      let id
+      this.planType = e
+      switch (this.manyOptions.length) {
+        case 0:
+          id = { planType: e, pageSize: 10, pageNum: this.nowPageData, planName: this.searchInput }
+          break
+        case 1:
+          id = {
+            planPlantAreaId: this.manyOptions[0],
+            pageSize: 10,
+            pageNum: this.nowPageData,
+            planType: e,
+            planName: this.searchInput
+          }
+          break
+        case 2:
+          id = {
+            planWorkShopId: this.manyOptions[1],
+            pageSize: 10,
+            pageNum: this.nowPageData,
+            planType: e,
+            planName: this.searchInput
+          }
+          break
+        case 3:
+          id = {
+            planTeamGroupId: this.manyOptions[2],
+            pageSize: 10,
+            pageNum: this.nowPageData,
+            planType: e,
+            planName: this.searchInput
+          }
+          break
+      }
+      getDataByPage('/plan/page', id).then((res) => {
+        this.$emit('changeTable', res.data.data)
+         this.$emit('changepageBool', false)
+      })
     },
     // 级联选择器
     handleChange(e) {
-      getDataByPage('/plan/page', {
-        planPlantAreaId: e[0],
-        planWorkShopId: e[1],
-        planTeamGroupId: e[2]
-      }).then((res) => {
-        this.$emit('changeTable', res.data.data.records)
-      })
+      if (this.manyOptions.length != 0) {
+        if (this.pageBool) {
+          this.nowPageData = 1
+        }
+        // eslint-disable-next-line prettier/prettier
+        let id
+        switch (e.length) {
+          case 1:
+            id = {
+              planPlantAreaId: e[0],
+              pageSize: 10,
+              pageNum: this.nowPageData,
+              planType: this.planType,
+              planName: this.searchInput
+            }
+            break
+          case 2:
+            id = {
+              planWorkShopId: e[1],
+              pageSize: 10,
+              pageNum: this.nowPageData,
+              planType: this.planType,
+              planName: this.searchInput
+            }
+            break
+          case 3:
+            id = {
+              planTeamGroupId: e[2],
+              pageSize: 10,
+              pageNum: this.nowPageData,
+              planType: this.planType,
+              planName: this.searchInput
+            }
+            break
+        }
+        getDataByPage('/plan/page', id).then((res) => {
+          this.$emit('changeTable', res.data.data)
+           this.$emit('changepageBool', false)
+        })
+      } else if (this.oneOption) {
+        this.oneOptionSelect(this.oneOption)
+      } else {
+        this.$emit('getPageData', this.pageSzie, 1)
+      }
     }
   }
 }
@@ -788,13 +1094,12 @@ export default {
   position: absolute;
   bottom: 40px;
   left: 50%;
-  transform: translateX(50%);
 }
 .pageCurrent1 {
   position: absolute;
   bottom: 20px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-150%);
 }
 .top {
   width: 100%;

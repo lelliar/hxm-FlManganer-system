@@ -7,7 +7,8 @@ axios.default.timeout = 3000
 axios.defaults.baseURL = process.env.VUE_APP_BASE_URL
 axios.interceptors.request.use((config) => {
   const token = storage.get('token').data
-  token && (config.headers.token = token)
+  if (token && window.location.href != 'http://192.168.0.33:8082/#/login')
+    config.headers.token = token
   config.url?.includes('/proxy/') && (config.baseURL = '')
   return config
 })
@@ -15,6 +16,9 @@ axios.interceptors.request.use((config) => {
 axios.interceptors.response.use(
   (response) => {
     try {
+      if (response.request.responseType == 'blob') {
+        return response
+      }
       if (response.data && CODE_VERIFICATION) {
         const { code, msg } = response.data
         let isLegal = false

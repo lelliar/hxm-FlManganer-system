@@ -141,6 +141,7 @@ export default {
           const { wsId, wsName } = item
           return { value: wsId, label: wsName }
         })
+        this.optionsPlant = this.optionsPlant.reverse()
         this.plantValue = val
         this.title = '车间'
         this.selectType = 1

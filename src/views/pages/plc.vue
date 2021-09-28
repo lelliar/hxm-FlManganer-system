@@ -5,6 +5,8 @@
       :table="table"
       @getPageData="getPageData"
       ref="allTable"
+      :pageTotal="pageTotal"
+      :pageSzie="pageSize"
       :allTitleName="allTitleName"
     ></AllTable>
   </div>
@@ -20,6 +22,8 @@ export default {
   },
   data() {
     return {
+      pageTotal: 0,
+      pageSize: 10,
       dialogFormVisible: false,
       allTitleName: 'plc管理',
       table: [
@@ -54,51 +58,18 @@ export default {
           width: '250'
         }
       ],
-      tableData: [
-        {
-          plcdId: 123,
-          plcdNumber: 123,
-          plcdName: 'wefas',
-          plantArea: {
-            paId: 123,
-            paSerialNumber: 123,
-            paName: 'wefa'
-          },
-          material: {
-            materialId: 12,
-            materialNumber: 123,
-            materialName: '123'
-          }
-        },
-        {
-          plcdId: 123,
-          plcdNumber: 123,
-          plcdName: 'wefas',
-          plantArea: {
-            paId: 123,
-            paSerialNumber: 123,
-            paName: 'wefa'
-          },
-          material: {
-            materialId: 12,
-            materialNumber: 123,
-            materialName: '123'
-          }
-        }
-      ]
+      tableData: []
     }
   },
   methods: {
     // 分页请求
     getPageData(pageNum, pageSize) {
-      getDataByPage('/plcDetailed/page', { pageNum: pageNum, pageSize: pageSize }).then((res) => {
-        this.nowPageData = pageNum
-        this.pageSize = pageSize
+      getDataByPage('/plcDetailed/page', { pageNum: pageSize, pageSize: pageNum }).then((res) => {
         this.tableData = res.data.data.records
         this.pageTotal = res.data.data.total
-        if (res.data.data.records.length == 0 && this.nowPageData != 1) {
+        if (res.data.data.records.length == 0 && pageSize != 1) {
           this.nowPageData--
-          this.getPageData(this.nowPageData, this.pageSize)
+          this.getPageData(this.pageSize, this.nowPageData)
         }
       })
     }

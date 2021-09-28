@@ -4,7 +4,7 @@
     <el-container>
       <el-aside width="250px"><Aside></Aside></el-aside>
       <el-main class="main"
-        ><el-card class="main-card"><router-view /></el-card
+        ><el-card class="main-card"> <router-view /></el-card
       ></el-main>
     </el-container>
     <vue-progress-bar></vue-progress-bar>
@@ -22,6 +22,9 @@ export default {
   },
   mounted() {
     this.$Progress.finish()
+  },
+  beforeRouteUpdate(to, form, next) {
+    next()
   },
   created() {
     this.$Progress.start()
@@ -63,7 +66,6 @@ body {
 .el-main {
   background-color: #e9eef3;
   color: #333;
-  text-align: center;
   padding: 30px;
 }
 body > .el-container {

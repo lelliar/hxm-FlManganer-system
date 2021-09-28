@@ -23,6 +23,15 @@ const options = {
   location: 'top',
   inverse: false
 }
+
+// if (window.location.href != 'http://192.168.0.33:8082/#/login') {
+//   const asyncRoute = JSON.parse(localStorage.getItem('asyncRoutes'))
+//   const userInfo = JSON.parse(localStorage.getItem('userInfo'))
+//   store.commit('setRoutes', asyncRoute)
+//   store.commit('setAsyncRoute', asyncRoute)
+//   store.commit('setUserInfo', userInfo)
+//   store.commit('updateAsyncRoute')
+// }
 Vue.use(VueProgressBar, options)
 Vue.config.productionTip = false
 

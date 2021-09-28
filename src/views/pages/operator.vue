@@ -5,6 +5,9 @@
       :table="table"
       @getPageData="getPageData"
       ref="allTable"
+      :pageSzie="pageSize"
+      :pageTotal="pageTotal"
+      :planRules="planRules"
       @deleteRow="deleteRow"
       :allTitleName="allTitleName"
     ></AllTable>
@@ -13,17 +16,46 @@
 
 <script>
 import AllTable from '@com/allTable'
-// getDataByPage,
-import { deleteData } from '@sev/commonRequest'
+import { deleteData, getDataByPage } from '@sev/commonRequest'
+import { regNumber, isCardNo } from '@/hooks/phoneValidate'
 export default {
   name: 'Machine',
   components: {
     AllTable
   },
   data() {
+    var validatePhone = (rule, value, callback) => {
+      if (!regNumber(value)) {
+        callback(new Error('请输入正确的手机号'))
+      } else {
+        callback()
+      }
+    }
+    var validateCard = (rule, value, callback) => {
+      if (!isCardNo(value)) {
+        callback(new Error('请输入正确的身份证号'))
+      } else {
+        callback()
+      }
+    }
     return {
       dialogFormVisible: false,
+      pageSize: 10,
+      pageTotal: 1,
       allTitleName: '自助机操作人员管理',
+      planRules: {
+        userName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+        userContact: [
+          { required: true, message: '请输入手机号', trigger: 'blur' },
+          { min: 11, max: 11, message: '手机号应为11位', trigger: 'blur' },
+          { validator: validatePhone, trigger: 'blur' }
+        ],
+        userLoginName: [
+          { required: true, message: '请输入身份证号', trigger: 'blur' },
+          { validator: validateCard, trigger: 'blur' }
+        ],
+        plantAreas: [{ required: true, message: '请选择可发料厂区', trigger: 'blur' }]
+      },
       table: [
         {
           name: '姓名',
@@ -32,8 +64,13 @@ export default {
         },
         {
           name: '可发料厂区',
-          prop: 'userOperatorPlantAreaName',
-          width: '250'
+          prop: 'plantNames',
+          width: '150'
+        },
+        {
+          name: '用户状态',
+          prop: 'userStatusMessage',
+          width: '100'
         },
         {
           name: '联系方式',
@@ -42,7 +79,7 @@ export default {
         },
         {
           name: '身份证',
-          prop: 'userOperatorIdCard',
+          prop: 'userLoginName',
           width: '250'
         },
         {
@@ -51,53 +88,40 @@ export default {
           width: '250'
         }
       ],
-      tableData: [
-        {
-          userId: 123,
-          userName: '123',
-          userCreateTime: 'wefas',
-          userUpdateTime: 12,
-          userContact: '123',
-          userOperatorPlantAreaId: [1, 2],
-          userOperatorPlantAreaName: 'asd',
-          userOperatorIdCard: 123,
-          userStatus: true,
-          userType: 213,
-          userLoginName: '1231',
-          privileges: [
-            {
-              privilegeId: 12,
-              privilegeCNName: '阿克苏'
-            }
-          ]
-        }
-      ]
+      tableData: []
     }
   },
   methods: {
     // 分页请求
     getPageData(pageNum, pageSize) {
-      //   getDataByPage('/user/page', { pageNum: pageNum, pageSize: pageSize }).then((res) => {
-      //     res.data.data.records = res.data.data.records.map((item) => {
-      //       if (item.userType == 1) {
-      //         return item
-      //       }
-      //     })
-      //     this.nowPageData = pageNum
-      //     this.pageSize = pageSize
-      //     res.data.data.records.userOperatorPlantAreaId = res.data.data.records.map((item) => {
-      //       return item.paId
-      //     })
-      //     this.tableData = res.data.data.records
-      //     this.pageTotal = res.data.data.total
-      //     if (res.data.data.records.length == 0 && this.nowPageData != 1) {
-      //       this.nowPageData--
-      //       this.getPageData(this.nowPageData, this.pageSize)
-      //     }
-      //   })
+      getDataByPage('/user/page', { pageNum: pageSize, pageSize: pageNum, userType: 1 }).then(
+        (res) => {
+          res.data.data.records = res.data.data.records.map((item) => {
+            if (item.userType == 1) {
+              return item
+            }
+          })
+          res.data.data.records.forEach((item) => {
+            item.plantNames = ''
+            item.plantId = []
+            item.userStatusMessage = item.userStatus ? '启用' : '停用'
+            item.plantAreas.forEach((item2) => {
+              item.plantNames += item2.paName.toString() + ' '
+              item.plantId.push(item2.paId)
+            })
+          })
+          this.pageTotal = res.data.data.total
+          this.pageSize = res.data.data.size
+          this.tableData = res.data.data.records
+          if (res.data.data.records.length == 0 && pageSize != 1) {
+            this.nowPageData--
+            this.getPageData(this.pageSize, this.nowPageData)
+          }
+        }
+      )
     },
-    deleteRow(row) {
-      this.$confirm(`此操作将永久删除${row.planPlantAreaName}下的计划, 是否继续?`, '提示', {
+    deleteRow(row, pageNum) {
+      this.$confirm(`此操作将永久删除${row.userName}下的计划, 是否继续?`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
@@ -106,8 +130,9 @@ export default {
           deleteData(`/user/remove/${row.userId}/1`).then((res) => {
             this.$message({
               type: 'success',
-              message: 'res.data.message'
+              message: '删除成功'
             })
+            this.getPageData(this.pageSize, pageNum)
           })
         })
         .catch(() => {

@@ -1,7 +1,7 @@
 <template>
   <div>
     <slot name="botton" :pageName="pageName"></slot>
-    <el-table :data="tableData" style="width: 100%">
+    <el-table :data="tableData" style="width: 100%" max-height="600">
       <Table :table="table"></Table>
       <el-table-column fixed="right" label="操作" width="150">
         <template slot-scope="scope" style="display: flex">
@@ -90,7 +90,6 @@ export default {
   position: absolute;
   bottom: 40px;
   left: 50%;
-  transform: translateX(50%);
 }
 </style>
 <style>
